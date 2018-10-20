@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Mapas</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="normal">Normal</string>
+    <string name="satelite">Satélite</string>
+    <string name="terreno">Terreno</string>
+</resources>

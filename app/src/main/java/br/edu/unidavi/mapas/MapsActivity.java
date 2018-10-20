@@ -1,19 +1,33 @@
 package br.edu.unidavi.mapas;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.location.Location;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +39,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Button buttonNormal;
     private Button buttonSatelite;
     private Button buttonTerreno;
+    private Button buttonMarkerChecker;
+    private boolean enableMyLocation = false;
+    private LatLng previousPosition = new LatLng(-27.2060804, -49.6452095);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,8 +76,65 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
             }
         });
+
+        buttonMarkerChecker = findViewById(R.id.marker_checker);
+        buttonMarkerChecker.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(!markers.isEmpty()) {
+                    Marker marker = markers.get(0);
+                    if(mMap.getProjection().getVisibleRegion().latLngBounds.contains(marker.getPosition())) {
+                        Toast.makeText(MapsActivity.this, "O Marker está na tela!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MapsActivity.this, "O Marker não está na tela!", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        });
+        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            enableMyLocation = true;
+        } else {
+            if(ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                Toast.makeText(MapsActivity.this, "Por Favor, sua localização é necessário", Toast.LENGTH_SHORT).show();
+            }
+            ActivityCompat.requestPermissions(this, new String[] {
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            }, 100);
+        }
     }
 
+    @SuppressLint("MissingPermission")
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == 100) {
+            if(grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (mMap != null) {
+                    mMap.getUiSettings().setMyLocationButtonEnabled(true);
+                    mMap.setMyLocationEnabled(true);
+                } else {
+                    enableMyLocation = true;
+                }
+                drawCircleOnPosition();
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private void drawCircleOnPosition() {
+        FusedLocationProviderClient client = LocationServices.getFusedLocationProviderClient(this);
+        client.getLastLocation().addOnSuccessListener(new OnSuccessListener<Location>() {
+            @Override
+            public void onSuccess(Location location) {
+                mMap.addCircle(new CircleOptions()
+                        .center(new LatLng(location.getLatitude(), location.getLongitude()))
+                        .fillColor(Color.RED)
+                        .strokeColor(Color.RED)
+                        .radius(25)
+                );
+            }
+        });
+    }
 
     /**
      * Manipulates the map once available.
@@ -76,6 +150,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         addDragListener();
         addToolTipListener();
+
+        mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.style));
+        mMap.getUiSettings().setZoomControlsEnabled(true);
+
 
         // Add a marker in Sydney and move the camera
         LatLng unidavi = new LatLng(-27.2060804, -49.6452095);
@@ -123,6 +201,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onMarkerDragEnd(Marker marker) {
                 if(markers.contains(marker)) {
                     mMap.animateCamera(CameraUpdateFactory.newLatLng(marker.getPosition()));
+                    mMap.addPolyline(new PolylineOptions()
+                        .add(previousPosition, marker.getPosition())
+                        .width(6)
+                        .color(Color.RED)
+                    );
+                    previousPosition = marker.getPosition();
                 }
             }
         });

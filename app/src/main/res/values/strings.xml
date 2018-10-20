@@ -4,4 +4,5 @@
     <string name="normal">Normal</string>
     <string name="satelite">Satélite</string>
     <string name="terreno">Terreno</string>
+    <string name="cade_o_marker">Cade o Marker?</string>
 </resources>
